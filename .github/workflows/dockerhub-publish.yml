@@ -8,7 +8,7 @@ on:
     types: [published]
 
 env:
-  IS_RELEASE: ${{github.event_name != 'release' && 'yaya' || 'nana'}}
+  IS_RELEASE: ${{github.event_name != 'release'}}
 
 jobs:
   docker-publish:
@@ -29,22 +29,22 @@ jobs:
       #     password: ${{ secrets.DOCKERHUB_TOKEN }}
       -
         name: always
-        run: echo ${{vars.IS_RELEASE}}
+        run: echo ${{env.IS_RELEASE}}
       -
         name: if true
-        if: ${{vars.IS_RELEASE == 'yaya'}}
+        if: env.IS_RELEASE
         run: echo 'It is a release'
       -
         name: if false
-        if: ${{vars.IS_RELEASE == 'nana'}}
+        if: env.IS_RELEASE
         run: echo 'not a release'
       - 
         name: Compute tags
-        if: ${{vars.IS_RELEASE}}
+        if: env.IS_RELEASE
         run: echo "TAG_VERSION=$(release='${{github.event.release.tag_name}}' && echo ${release:1})" >> $GITHUB_ENV
       -
         name: Print tags
-        run: echo ${{(vars.IS_RELEASE && format('gruxer/prism:{0},gruxer/prism:latest', env.TAG_VERSION)) || 'gruxer/prism:master' }}
+        run: echo ${{(env.IS_RELEASE && format('gruxer/prism:{0},gruxer/prism:latest', env.TAG_VERSION)) || 'gruxer/prism:master' }}
       # -
       #   name: Build and Push
       #   uses: docker/build-push-action@v4
