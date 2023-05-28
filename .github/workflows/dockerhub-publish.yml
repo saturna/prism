@@ -29,7 +29,7 @@ jobs:
       #     password: ${{ secrets.DOCKERHUB_TOKEN }}
       -
         name: print vars
-        run: "echo 'is release: ${{vars.IS_RELEASE && 'yes'}}'"
+        run: "echo 'is release: ${{(vars.IS_RELEASE && 'yes') || 'no'}}'"
       - 
         name: Compute tags
         if: ${{vars.IS_RELEASE}}
