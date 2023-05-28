@@ -27,7 +27,11 @@ jobs:
       #   with:
       #     username: ${{ secrets.DOCKERHUB_USERNAME }}
       #     password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Compute tags
+      -
+        name: print vars
+        run: echo ${{vars.IS_RELEASE}}
+      - 
+        name: Compute tags
         if: vars.IS_RELEASE
         run: echo "TAG_VERSION=$(release='${{github.event.release.tag_name}}' && echo ${release:1})" >> $GITHUB_ENV
       -
