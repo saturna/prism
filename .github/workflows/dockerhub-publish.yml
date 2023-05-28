@@ -8,7 +8,7 @@ on:
     types: [published]
 
 env:
-  IS_RELEASE: $(echo ${{github.event_name != 'release' && 'true' || 'false'}})
+  IS_RELEASE: ${{github.event_name != 'release' && 'yaya' || 'nana'}}
 
 jobs:
   docker-publish:
@@ -32,11 +32,11 @@ jobs:
         run: echo ${{vars.IS_RELEASE}}
       -
         name: if true
-        if: ${{vars.IS_RELEASE == 'true'}}
+        if: ${{vars.IS_RELEASE == 'yaya'}}
         run: echo 'It is a release'
       -
         name: if false
-        if: ${{vars.IS_RELEASE == 'false'}}
+        if: ${{vars.IS_RELEASE == 'nana'}}
         run: echo 'not a release'
       - 
         name: Compute tags
