@@ -28,6 +28,9 @@ jobs:
       #     username: ${{ secrets.DOCKERHUB_USERNAME }}
       #     password: ${{ secrets.DOCKERHUB_TOKEN }}
       -
+        name: always
+        run: echo ${{vars.IS_RELEASE}}
+      -
         name: if true
         if: ${{vars.IS_RELEASE == 'true'}}
         run: echo 'It is a release'
