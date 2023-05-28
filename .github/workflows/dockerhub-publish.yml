@@ -44,13 +44,13 @@ jobs:
         run: echo "TAG_VERSION=$(release='${{github.event.release.tag_name}}' && echo ${release:1})" >> $GITHUB_ENV
       -
         name: Print tags
-        run: echo ${{(env.IS_RELEASE && format('gruxer/prism:{0},gruxer/prism:latest', env.TAG_VERSION)) || 'gruxer/prism:master' }}
+        run: echo ${{(env.IS_RELEASE && format('gruxer/prism:{0},gruxer/prism:latest', env.TAG_VERSION)) || 'gruxer/prism:master'}}
       # -
       #   name: Build and Push
       #   uses: docker/build-push-action@v4
       #   with:
       #     context: .
       #     push: true
-      #     tags: ${{ (github.event_name == 'release' && format('gruxer/prism:{0},gruxer/prism:latest', github.event.release.tag_name)) || 'gruxer/prism:master' }}
+      #     tags: ${{(env.IS_RELEASE == 'release' && format('gruxer/prism:{0},gruxer/prism:latest', env.TAG_VERSION)) || 'gruxer/prism:master'}}
       #     platforms: linux/amd64
       #     build-args: BUILD_TYPE=production
