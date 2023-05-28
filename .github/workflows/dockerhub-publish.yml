@@ -33,7 +33,7 @@ jobs:
         run: echo 'It is a release'
       -
         name: if false
-        if: !vars.IS_RELEASE
+        if: ${{!vars.IS_RELEASE}}
         run: echo 'not a release'
       - 
         name: Compute tags
