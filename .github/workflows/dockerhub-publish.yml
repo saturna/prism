@@ -8,7 +8,7 @@ on:
     types: [published]
 
 env:
-  IS_RELEASE: ${{github.event_name == 'release' && 'true' || 'false'}}
+  IS_RELEASE: ${{github.event_name == 'release'}}
 
 jobs:
   docker-publish:
