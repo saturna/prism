@@ -26,13 +26,13 @@ jobs:
       #     password: ${{ secrets.DOCKERHUB_TOKEN }}
       -
         name: Print tags
-        run: echo ${{ (github.event_name == 'release' && format('gruxer/prism:{0}', github.event.release.tag_name) && ',gruxer/prism:latest') || 'master' }} 
+        run: echo ${{ (github.event_name == 'release' && format('gruxer/prism:{0},gruxer/prism:latest', github.event.release.tag_name)) || 'gruxer/prism/master' }}
       # -
       #   name: Build and Push
       #   uses: docker/build-push-action@v4
       #   with:
       #     context: .
       #     push: true
-      #     tags: ${{ (github.event_name == 'release' && format('gruxer/prism:{0}', github.event.release.tag_name) && 'gruxer/prism:latest') || 'master' }}
+      #     tags: ${{ (github.event_name == 'release' && format('gruxer/prism:{0},gruxer/prism:latest', github.event.release.tag_name)) || 'gruxer/prism/master' }}
       #     platforms: linux/amd64
       #     build-args: BUILD_TYPE=production
