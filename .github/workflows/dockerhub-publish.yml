@@ -29,7 +29,7 @@ jobs:
         run: echo "TAG_VERSION=$(echo ${{github.event_name}})" >> $GITHUB_ENV
       -
         name: Print tags
-        run: echo ${{ (github.event_name == 'release' && format('gruxer/prism:{0},gruxer/prism:latest', github.event.release.tag_name)) || 'gruxer/prism:master' }}
+        run: echo ${{ (github.event_name == 'release' && format('gruxer/prism:{0},gruxer/prism:latest', github.event.release.tag_name)) || env.TAG_VERSION }}
       # -
       #   name: Build and Push
       #   uses: docker/build-push-action@v4
