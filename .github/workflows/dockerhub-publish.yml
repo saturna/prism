@@ -3,7 +3,7 @@ name: Build & Publish Docker image
 on: 
   push:
     branches:
-      - '*'
+      - master
   release:
     types: [published]
 
@@ -29,7 +29,7 @@ jobs:
         run: echo "MASTER_TAG=gruxer/prism:master" >> $GITHUB_ENV
       -
         name: Print tags
-        run: echo ${{ (github.event_name == 'release' && format('gruxer/prism:{0},gruxer/prism:latest', github.event.release.tag_name)) || env.MASTER_TAG }}
+        run: echo ${{ (github.event_name == 'release' && format('gruxer/prism:{0},gruxer/prism:latest', github.event.release.tag_name)) || env.MASTER_TAGS }}
       # -
       #   name: Build and Push
       #   uses: docker/build-push-action@v4
