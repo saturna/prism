@@ -9,6 +9,12 @@ on:
 
 env:
   IS_RELEASE: ${{github.event_name == 'release'}}
+  DOCKER_BUILD_ARGS: |
+    BUILD_TYPE=production
+    YARN_NETWORK_TIMEOUT=480000
+  DOCKER_BUILD_PLATFORMS: |
+    linux/amd64
+    linux/arm64
 
 jobs:
   docker-publish:
@@ -28,18 +34,30 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - 
-        name: Compute full release version tag
+        name: Compute release version tags
         if: env.IS_RELEASE == 'true'
-        run: echo "TAG_FULL_VERSION=$(release='${{github.event.release.tag_name}}' && echo ${release:1})" >> $GITHUB_ENV
-      - 
-        name: Compute primary release version tag
-        if: env.IS_RELEASE == 'true'
-        run: echo "TAG_PRIMARY_VERSION=$(release='${{github.event.release.tag_name}}' && echo ${release:1:1})" >> $GITHUB_ENV
+        run: |
+          echo "TAG_PRIMARY_VERSION=$(release='${{github.event.release.tag_name}}' && echo ${release:1:1})" >> $GITHUB_ENV
+          echo "TAG_FULL_VERSION=$(release='${{github.event.release.tag_name}}' && echo ${release:1})" >> $GITHUB_ENV
       -
-        name: Build and Push
+        name: Build and Push release Tags
+        if: env.IS_RELEASE == 'true'
         uses: docker/build-push-action@v4
         with:
           push: true
-          tags: ${{(env.IS_RELEASE == 'true' && format('gruxer/prism:{0},gruxer/prism:{1},gruxer/prism:latest', env.TAG_FULL_VERSION, env.TAG_PRIMARY_VERSION)) || 'gruxer/prism:master'}}
-          platforms: linux/amd64,linux/arm64
-          build-args: BUILD_TYPE=production,YARN_NETWORK_TIMEOUT=480000
+          tags: |
+            ${{format('{0}/prism:{1}', secrets.DOCKERHUB_USERNAME, env.TAG_FULL_VERSION)}}
+            ${{format('{0}/prism:{1}', secrets.DOCKERHUB_USERNAME, env.TAG_PRIMARY_VERSION)}}
+            ${{format('{0}/prism:{1}', secrets.DOCKERHUB_USERNAME, 'latest')}}
+          platforms: ${{env.DOCKER_BUILD_PLATFORMS}}
+          build-args: ${{env.DOCKER_BUILD_ARGS}}
+      -
+        name: Build and Push master Tag
+        if: env.IS_RELEASE != 'true'
+        uses: docker/build-push-action@v4
+        with:
+          push: true
+          tags: |
+            ${{format('{0}/prism:master', secrets.DOCKERHUB_USERNAME)}}
+          platforms: ${{env.DOCKER_BUILD_PLATFORMS}}
+          build-args: ${{env.DOCKER_BUILD_ARGS}}
