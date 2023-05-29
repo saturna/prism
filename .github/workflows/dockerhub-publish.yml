@@ -42,4 +42,4 @@ jobs:
           push: true
           tags: ${{(env.IS_RELEASE == 'true' && format('gruxer/prism:{0},gruxer/prism:{1},gruxer/prism:latest', env.TAG_FULL_VERSION, env.TAG_PRIMARY_VERSION)) || 'gruxer/prism:master'}}
           platforms: linux/amd64,linux/arm64
-          build-args: BUILD_TYPE=production
+          build-args: BUILD_TYPE=production,YARN_NETWORK_TIMEOUT=480000
