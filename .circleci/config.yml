@@ -2,18 +2,15 @@ version: 2.1
 executors:
   docker-node:
     docker:
-      - image: circleci/node:16
+      - image: cimg/node:16.20.2
   docker-harness:
     docker:
-      - image: circleci/node:16
+      - image: cimg/node:16.20.2
       - image: kennethreitz/httpbin
         name: httpbin.org
   macos:
     macos:
-      xcode: 13.3.1
-
-orbs:
-  stoplight: stoplight/cli@0.0.3
+      xcode: 13.4.1
 jobs:
   build:
     executor: docker-node
@@ -85,7 +82,7 @@ jobs:
       - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
       - run:
           name: Publish
-          command: yarn lerna publish from-git --create-release=github --yes --no-verify-access
+          command: yarn lerna publish from-git --create-release=github --yes
       - run:
           name: Create CLI binaries
           command: npx pkg --out-path ./cli-binaries ./packages/cli/
@@ -148,11 +145,3 @@ workflows:
               only: /^v.*/
           requires:
             - publish
-      - stoplight/analyze:
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: /^v.*/
-          requires:
-            - upload_artifacts

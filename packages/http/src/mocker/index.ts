@@ -1,6 +1,7 @@
 import { IPrismComponents, IPrismDiagnostic, IPrismInput } from '@stoplight/prism-core';
 import {
   DiagnosticSeverity,
+  Dictionary,
   IHttpHeaderParam,
   IHttpOperation,
   IHttpOperationResponse,
@@ -31,8 +32,8 @@ import {
   ProblemJsonError,
 } from '../types';
 import withLogger from '../withLogger';
-import { UNAUTHORIZED, UNPROCESSABLE_ENTITY, INVALID_CONTENT_TYPE } from './errors';
-import { generate, generateStatic } from './generator/JSONSchema';
+import { UNAUTHORIZED, UNPROCESSABLE_ENTITY, INVALID_CONTENT_TYPE, SCHEMA_TOO_COMPLEX } from './errors';
+import { generate, generateStatic, SchemaTooComplexGeneratorError } from './generator/JSONSchema';
 import helpers from './negotiator/NegotiatorHelpers';
 import { IHttpNegotiationResult } from './negotiator/types';
 import { runCallback } from './callback/callbacks';
@@ -42,7 +43,9 @@ import {
   deserializeFormBody,
   findContentByMediaTypeOrFirst,
   splitUriParams,
+  parseMultipartFormDataParams
 } from '../validator/validators/body';
+import { parseMIMEHeader } from '../validator/validators/headers';
 import { NonEmptyArray } from 'fp-ts/NonEmptyArray';
 export { resetGenerator as resetJSONSchemaGenerator } from './generator/JSONSchema';
 
@@ -55,7 +58,7 @@ const mock: IPrismComponents<IHttpOperation, IHttpRequest, IHttpResponse, IHttpM
   config,
 }) => {
   const payloadGenerator: PayloadGenerator = config.dynamic
-    ? partial(generate, resource['__bundled__'])
+    ? partial(generate, resource, resource['__bundle__'])
     : partial(generateStatic, resource);
 
   return pipe(
@@ -68,7 +71,6 @@ const mock: IPrismComponents<IHttpOperation, IHttpRequest, IHttpResponse, IHttpM
         logger.info(`Request contains an accept header: ${acceptMediaType}`);
         config.mediaTypes = acceptMediaType.split(',');
       }
-
       return config;
     }),
     R.chain(mockConfig => negotiateResponse(mockConfig, input, resource)),
@@ -137,10 +139,11 @@ function runCallbacks({
   we cannot carry parsed informations in case of an error — which is what we do need instead.
 */
 function parseBodyIfUrlEncoded(request: IHttpRequest, resource: IHttpOperation) {
-  const mediaType = caseless(request.headers || {}).get('content-type');
-  if (!mediaType) return request;
+  const contentTypeHeader = caseless(request.headers || {}).get('content-type');
+  if (!contentTypeHeader) return request;
+  const [multipartBoundary, mediaType] = parseMIMEHeader(contentTypeHeader);
 
-  if (!is(mediaType, ['application/x-www-form-urlencoded'])) return request;
+  if (!is(mediaType, ['application/x-www-form-urlencoded', 'multipart/form-data'])) return request;
 
   const specs = pipe(
     O.fromNullable(resource.request),
@@ -148,8 +151,12 @@ function parseBodyIfUrlEncoded(request: IHttpRequest, resource: IHttpOperation) 
     O.chainNullableK(body => body.contents),
     O.getOrElse(() => [] as IMediaTypeContent[])
   );
-
-  const encodedUriParams = splitUriParams(request.body as string);
+  
+  const requestBody = request.body as string;
+  const encodedUriParams = pipe(
+    mediaType === "multipart/form-data" ? parseMultipartFormDataParams(requestBody, multipartBoundary) : splitUriParams(requestBody),
+    E.getOrElse<IPrismDiagnostic[], Dictionary<string>>(() => ({} as Dictionary<string>))
+  );
 
   if (specs.length < 1) {
     return Object.assign(request, { body: encodedUriParams });
@@ -357,6 +364,7 @@ function computeMockedHeaders(headers: IHttpHeaderParam[], payloadGenerator: Pay
           } else {
             return pipe(
               payloadGenerator(header.schema),
+              mapPayloadGeneratorError('header'),
               E.map(example => {
                 if (isNumber(example) || isString(example)) return example;
                 return null;
@@ -378,9 +386,20 @@ function computeBody(
     return E.right(negotiationResult.bodyExample.value);
   }
   if (negotiationResult.schema) {
-    return payloadGenerator(negotiationResult.schema);
+    return pipe(payloadGenerator(negotiationResult.schema), mapPayloadGeneratorError('body'));
   }
   return E.right(undefined);
 }
+
+const mapPayloadGeneratorError = (source: string) =>
+  E.mapLeft<Error, Error>(err => {
+    if (err instanceof SchemaTooComplexGeneratorError) {
+      return ProblemJsonError.fromTemplate(
+        SCHEMA_TOO_COMPLEX,
+        `Unable to generate ${source} for response. The schema is too complex to generate.`
+      );
+    }
+    return err;
+  });
 
 export default mock;

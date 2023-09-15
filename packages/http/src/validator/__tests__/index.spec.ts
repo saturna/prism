@@ -140,6 +140,7 @@ describe('HttpValidator', () => {
                 { id: expect.any(String), name: 'a', style: HttpParamStyles.Simple },
                 { id: expect.any(String), name: 'b', style: HttpParamStyles.Matrix },
               ],
+              ValidationContext.Input,
               undefined
             );
           });
@@ -173,6 +174,7 @@ describe('HttpValidator', () => {
                 { id: expect.any(String), name: 'a-id', style: HttpParamStyles.Simple },
                 { id: expect.any(String), name: 'b-id', style: HttpParamStyles.Matrix },
               ],
+              ValidationContext.Input,
               undefined
             );
           });
@@ -182,6 +184,51 @@ describe('HttpValidator', () => {
   });
 
   describe('validateOutput()', () => {
+    describe('when schema contains an internal reference', () => {
+      it('validates response correctly', () => {
+        assertLeft(
+          validator.validateOutput({
+            resource: {
+              method: 'get',
+              path: '/',
+              id: '1',
+              request: {},
+              // @ts-ignore - Requires update in @stoplight/types to allow for '__bundled__'
+              __bundled__: { OutputType: { type: 'string' } },
+              responses: [
+                {
+                  id: faker.random.word(),
+                  code: '200',
+                  contents: [
+                    {
+                      id: faker.random.word(),
+                      mediaType: 'application/json',
+                      schema: {
+                        type: 'object',
+                        properties: { output: { $ref: '#/__bundled__/OutputType' } },
+                        required: ['output'],
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+            element: { statusCode: 200, headers: { 'content-type': 'application/json' }, body: {} },
+          }),
+          error => {
+            expect(error).toEqual([
+              {
+                code: 'required',
+                message: "Response body must have required property 'output'",
+                path: ['body'],
+                severity: 0,
+              },
+            ]);
+          }
+        );
+      });
+    });
+
     describe('output is set', () => {
       beforeAll(() => {
         jest.spyOn(validators, 'validateBody').mockReturnValue(E.left([mockError]));
@@ -211,6 +258,7 @@ describe('HttpValidator', () => {
             undefined,
             [],
             ValidationContext.Output,
+            undefined,
             undefined,
             undefined
           );
@@ -309,8 +357,8 @@ describe('HttpValidator', () => {
                 mediaType: 'image/*',
                 schema: {
                   type: 'string',
-                }
-              }
+                },
+              },
             ],
           },
         ],
@@ -355,7 +403,7 @@ describe('HttpValidator', () => {
             })
           );
         });
-      })
+      });
     });
   });
 });

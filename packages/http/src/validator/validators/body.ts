@@ -6,10 +6,12 @@ import * as O from 'fp-ts/Option';
 import * as NEA from 'fp-ts/NonEmptyArray';
 import { pipe } from 'fp-ts/function';
 import { get } from 'lodash';
+import * as multipart from 'parse-multipart-data';
 import { is as typeIs } from 'type-is';
 import { JSONSchema } from '../../types';
 import { body } from '../deserializers';
 import { validateAgainstSchema } from './utils';
+import { NonEmptyArray } from 'fp-ts/NonEmptyArray';
 import { ValidationContext, validateFn } from './types';
 // @ts-ignore no typings
 import * as mergeAllOf from '@stoplight/json-schema-merge-allof';
@@ -47,11 +49,40 @@ export function deserializeFormBody(
 }
 
 export function splitUriParams(target: string) {
-  return target.split('&').reduce((result: Dictionary<string>, pair: string) => {
-    const [key, ...rest] = pair.split('=');
-    result[key] = rest.join('=');
-    return result;
-  }, {});
+  return E.right(
+    target.split('&').reduce((result: Dictionary<string>, pair: string) => {
+      const [key, ...rest] = pair.split('=');
+      result[key] = rest.join('=');
+      return result;
+    }, {})
+  );
+}
+
+export function parseMultipartFormDataParams(
+  target: string,
+  multipartBoundary?: string
+): E.Either<NEA.NonEmptyArray<IPrismDiagnostic>, Dictionary<string>> {
+  if (!multipartBoundary) {
+    const error =
+      'Boundary parameter for multipart/form-data is not defined or generated in the request header. Try removing manually defined content-type from your request header if it exists.';
+    return E.left<NonEmptyArray<IPrismDiagnostic>>([
+      {
+        message: error,
+        code: 415,
+        severity: DiagnosticSeverity.Error,
+      },
+    ]);
+  }
+  // the parse-multipart-data package requires that the body is passed in as a buffer, not a string
+  const bufferBody = Buffer.from(target, 'utf-8');
+  const parts = multipart.parse(bufferBody, multipartBoundary);
+
+  return E.right(
+    parts.reduce((result: Dictionary<string>, pair: any) => {
+      result[pair['name']] = pair['data'].toString();
+      return result;
+    }, {})
+  );
 }
 
 export function decodeUriEntities(target: Dictionary<string>) {
@@ -70,23 +101,31 @@ export function findContentByMediaTypeOrFirst(specs: IMediaTypeContent[], mediaT
   );
 }
 
-function deserializeAndValidate(content: IMediaTypeContent, schema: JSONSchema, target: string, prefix?: string, bundle?: unknown) {
+function deserializeAndValidate(
+  content: IMediaTypeContent,
+  schema: JSONSchema,
+  target: string,
+  context: ValidationContext,
+  prefix?: string,
+  multipartBoundary?: string,
+  bundle?: unknown
+) {
   const encodings = get(content, 'encodings', []);
-  const encodedUriParams = splitUriParams(target);
 
   return pipe(
-    validateAgainstReservedCharacters(encodedUriParams, encodings, prefix),
+    content.mediaType === 'multipart/form-data'
+      ? parseMultipartFormDataParams(target, multipartBoundary)
+      : splitUriParams(target),
+    E.chain(encodedUriParams => validateAgainstReservedCharacters(encodedUriParams, encodings, prefix)),
     E.map(decodeUriEntities),
     E.map(decodedUriEntities => deserializeFormBody(schema, encodings, decodedUriEntities)),
     E.chain(deserialised => {
       return pipe(
-        validateAgainstSchema(deserialised, schema, true, prefix, bundle),
+        validateAgainstSchema(deserialised, schema, true, context, prefix, bundle),
         E.fromOption(() => deserialised),
         E.swap
-      )
-
-    }
-    )
+      );
+    })
   );
 }
 
@@ -131,7 +170,14 @@ const normalizeSchemaProcessorMap: Record<ValidationContext, SchemaNormalizer> =
   [ValidationContext.Output]: memoizeSchemaNormalizer(stripWriteOnlyProperties),
 };
 
-export const validate: validateFn<unknown, IMediaTypeContent> = (target, specs, context, mediaType, bundle) => {
+export const validate: validateFn<unknown, IMediaTypeContent> = (
+  target,
+  specs,
+  context,
+  mediaType,
+  multipartBoundary,
+  bundle
+) => {
   const findContentByMediaType = pipe(
     O.Do,
     O.bind('mediaType', () => O.fromNullable(mediaType)),
@@ -150,13 +196,16 @@ export const validate: validateFn<unknown, IMediaTypeContent> = (target, specs, 
       ({ contentResult: { content, mediaType: mt }, schema }) =>
         pipe(
           mt,
-          O.fromPredicate(mediaType => !!typeIs(mediaType, ['application/x-www-form-urlencoded'])),
+          O.fromPredicate(
+            mediaType => !!typeIs(mediaType, ['application/x-www-form-urlencoded', 'multipart/form-data'])
+          ),
           O.fold(
-            () => pipe(
-              validateAgainstSchema(target, schema, false, prefix, bundle),
-              E.fromOption(() => target),
-              E.swap
-            ),
+            () =>
+              pipe(
+                validateAgainstSchema(target, schema, false, context, prefix, bundle),
+                E.fromOption(() => target),
+                E.swap
+              ),
             () =>
               pipe(
                 target,
@@ -164,9 +213,9 @@ export const validate: validateFn<unknown, IMediaTypeContent> = (target, specs, 
                   (target: unknown): target is string => typeof target === 'string',
                   () => [{ message: 'Target is not a string', code: '422', severity: DiagnosticSeverity.Error }]
                 ),
-                E.chain(target => deserializeAndValidate(content, schema, target, prefix))
+                E.chain(target => deserializeAndValidate(content, schema, target, context, prefix, multipartBoundary))
               )
-          ),
+          )
         )
     )
   );

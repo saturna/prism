@@ -40,7 +40,7 @@ jobs:
           echo "TAG_PRIMARY_VERSION=$(release='${{github.event.release.tag_name}}' && echo ${release:1:1})" >> $GITHUB_ENV
           echo "TAG_FULL_VERSION=$(release='${{github.event.release.tag_name}}' && echo ${release:1})" >> $GITHUB_ENV
       -
-        name: Build and Push release Tags
+        name: Build and Push release tags
         if: env.IS_RELEASE == 'true'
         uses: docker/build-push-action@v4
         with:

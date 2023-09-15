@@ -8,7 +8,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 # Unreleased
 
-- Limit the `sl-violations` response header to around 8kb. [#2297](https://github.com/stoplightio/prism/pull/2297)
+# 5.3.1 (2023.08.25)
+
+- fixed issue with validateOutput() when schema contains internal reference. [#2363](https://github.com/stoplightio/prism/pull/2363) - thanks @mtjandra for your contribution!
+
+# 5.3.0 (2023.08.17)
+
+- added new cli parameter to control the json schema faker fillProperties setting universally. [#2355](https://github.com/stoplightio/prism/pull/2355)
+- correctly list Response or Request in violation messages. [#2358](https://github.com/stoplightio/prism/pull/2358)
+
+# 5.2.0 (2023.07.28)
+
+- added support for multipart/form-data in the request body. [#2321](https://github.com/stoplightio/prism/pull/2321) - thanks @ilanashapiro for your contribution!
+
+# 5.1.0 (2023.07.24)
+
+- Improved error messages when using static mocking and the schema is too complex.
+
+# 5.0.1 (2023.06.01)
+
+- Limit the `sl-violations` response header to around 8 KB. [#2297](https://github.com/stoplightio/prism/pull/2297)
+- Improve error messages that describe unresolvable JSON Pointer references. [#2195](https://github.com/stoplightio/prism/issues/2195)
 
 # 5.0.0 (2023.05.17)
 
