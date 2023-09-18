@@ -2,10 +2,10 @@ version: 2.1
 executors:
   docker-node:
     docker:
-      - image: circleci/node:16
+      - image: cimg/node:16.20.2
   docker-harness:
     docker:
-      - image: circleci/node:16
+      - image: cimg/node:16.20.2
       - image: kennethreitz/httpbin
         name: httpbin.org
   macos:
@@ -82,7 +82,7 @@ jobs:
       - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
       - run:
           name: Publish
-          command: yarn lerna publish from-git --create-release=github --yes --no-verify-access
+          command: yarn lerna publish from-git --create-release=github --yes
       - run:
           name: Create CLI binaries
           command: npx pkg --out-path ./cli-binaries ./packages/cli/
